@@ -6,9 +6,12 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP_NAME="MidiMusicControl"
 DISPLAY_NAME="MIDI Music Control"
 BUNDLE_ID="com.midimusiccontrol.app"
-VERSION="1.0.0"
-BUILD_NUMBER="1"
+VERSION="${VERSION:-1.0.0}"
+BUILD_NUMBER="${BUILD_NUMBER:-1}"
 MIN_MACOS="13.0"
+SKIP_SIGN="${SKIP_SIGN:-false}"
+MACOS_SIGNING_IDENTITY="${MACOS_SIGNING_IDENTITY:-}"
+ENTITLEMENTS="${ENTITLEMENTS:-${ROOT}/Resources/MidiMusicControl.entitlements}"
 
 OUTPUT_DIR="${ROOT}/dist"
 APP_PATH="${OUTPUT_DIR}/${APP_NAME}.app"
@@ -118,9 +121,21 @@ cat > "${APP_PATH}/Contents/Info.plist" <<EOF
 </plist>
 EOF
 
-if command -v codesign >/dev/null 2>&1; then
-    echo "==> Signing app (ad-hoc)..."
-    codesign --force --sign - --timestamp=none "$APP_PATH"
+if [[ "$SKIP_SIGN" == "true" ]]; then
+    echo "==> Skipping codesign (SKIP_SIGN=true)"
+elif command -v codesign >/dev/null 2>&1; then
+    if [[ -n "$MACOS_SIGNING_IDENTITY" ]]; then
+        echo "==> Signing app with Developer ID..."
+        if [[ ! -f "$ENTITLEMENTS" ]]; then
+            echo "error: entitlements file not found at ${ENTITLEMENTS}" >&2
+            exit 1
+        fi
+        codesign --force --options runtime --entitlements "$ENTITLEMENTS" \
+            --sign "$MACOS_SIGNING_IDENTITY" --timestamp "$APP_PATH"
+    else
+        echo "==> Signing app (ad-hoc)..."
+        codesign --force --sign - --timestamp=none "$APP_PATH"
+    fi
 else
     echo "warning: codesign not found, skipping signature" >&2
 fi
