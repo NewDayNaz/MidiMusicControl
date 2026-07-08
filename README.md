@@ -9,6 +9,8 @@ A macOS menu bar app that listens for MIDI messages and controls **Spotify** or 
 - **Fade in / fade out** — smooth volume ramps for Spotify and Music
 - **Ducking** — lower volume to a configurable percentage, then restore the previous level
 - **Configurable mappings** — assign note or CC messages per action, with a **Learn** mode
+- **Live status dashboard** — see MIDI device state, learn mode, automation state, and recent input activity at a glance
+- **Mapping management** — reset to defaults and import/export mappings as JSON
 - **Launch at login** — optional startup toggle (requires the `.app` bundle)
 - **Persistent settings** — saved automatically via UserDefaults
 
@@ -49,9 +51,10 @@ Launch at login is **not** available when running this way — use the `.app` bu
 
 1. Launch the app (menu bar icon: music note list).
 2. Click the icon → **Settings…**
-3. Select your **MIDI Input** and click **Refresh Devices** if needed.
-4. Map your controller pads/knobs to actions (or use **Learn**).
-5. Trigger fades and ducking from your MIDI controller.
+3. In the **General** tab, select your **MIDI Input** and click **Refresh Devices** if needed.
+4. Adjust **Fade duration** and **Duck volume** to fit your workflow.
+5. Open the **Mappings** tab and map your controller pads/knobs to actions, or use **Learn** to capture the next MIDI message.
+6. Trigger fades and ducking from your MIDI controller.
 
 ### Default MIDI mappings
 
@@ -72,13 +75,16 @@ Default velocity for all mappings: **127**. Mappings match on exact note/CC **an
 
 | Section | Description |
 |---------|-------------|
-| **Startup** | Open at login (`.app` only) |
-| **MIDI Input** | Active controller and device refresh |
-| **Fade Speed** | Total fade duration in seconds (0.5–15s) |
-| **Ducking** | Target volume % while ducked (1–100%) |
-| **Fade / Duck Mappings** | Per-action note/CC, value, type, and Learn |
+| **Status header** | Live overview of selected MIDI device, learn mode, automation readiness, and last MIDI input |
+| **General → Startup** | Open at login (`.app` only) |
+| **General → MIDI Input** | Active controller selection and device refresh |
+| **General → Playback Controls** | Fade duration (0.5–15s) and duck volume target (1–100%) |
+| **General → Automation Permissions** | macOS automation guidance and error messaging |
+| **Mappings** | App-grouped mapping editor for Spotify and Music, with Learn, row reset, import, export, and reset defaults |
 
-**Learn mode:** click **Learn** on an action, then send the next MIDI message from the selected input. The note/CC and value are captured automatically.
+**Learn mode:** click **Learn** on an action, then send the next MIDI message from the selected input. The note/CC and value are captured automatically, and the active learn state is shown prominently at the top of the window.
+
+**Mapping import/export:** in the **Mappings** tab, use **Import** or **Export** to save your current mappings as JSON or load them on another machine. Use **Reset Defaults** to restore the built-in layout for all actions.
 
 ## macOS permissions
 
@@ -93,24 +99,25 @@ If you enable **Open at login**, you may also need to approve the app under:
 
 ## How it works
 
-MIDI messages are received via **Core MIDI**. Matching triggers run **AppleScript** against Spotify or Music to adjust volume over time. Fade duration is split evenly across volume steps; ducking stores the pre-duck level and restores it on unduck.
+MIDI messages are received via **Core MIDI**. Matching triggers run **AppleScript** against Spotify or Music to adjust volume over time. Fade duration is split evenly across volume steps; ducking stores the pre-duck level and restores it on unduck. The settings window also shows the last MIDI message received so you can confirm device activity while configuring mappings.
 
 ## Project structure
 
-```
-midi-spotify-control/
+```text
+MidiMusicControl/
 ├── Package.swift
+├── README.md
 ├── scripts/
 │   └── build-app.sh          # Build & package .app bundle
-├── Sources/MidiMusicControl/
+├── Sources/MidiSpotifyControl/
 │   ├── main.swift
 │   ├── AppDelegate.swift     # Menu bar & settings window
-│   ├── SettingsView.swift    # SwiftUI settings UI
+│   ├── SettingsView.swift    # SwiftUI settings UI and mapping editor
 │   ├── MIDIManager.swift     # Core MIDI input & learn mode
 │   ├── PlayerVolumeController.swift
 │   ├── AppleScriptFade.swift # Fade & duck AppleScript
 │   ├── LaunchAtLogin.swift
-│   └── AppSettings.swift     # UserDefaults persistence
+│   └── AppSettings.swift     # UserDefaults persistence and mapping import/export
 └── dist/                     # Built .app (after running build script)
 ```
 
