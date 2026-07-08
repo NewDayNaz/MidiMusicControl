@@ -43,7 +43,7 @@ final class PlayerVolumeController {
                 self.duckState.removeValue(forKey: app)
             case .failure(let error):
                 self.duckState.removeValue(forKey: app)
-                self.reportError(error)
+                self.reportError(error.description)
             }
         }
     }

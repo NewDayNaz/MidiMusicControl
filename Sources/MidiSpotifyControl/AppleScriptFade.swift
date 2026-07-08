@@ -10,6 +10,17 @@ enum FadeAction {
     case fadeOut
 }
 
+enum AppleScriptFadeError: Error, CustomStringConvertible {
+    case failed(String)
+
+    var description: String {
+        switch self {
+        case .failed(let message):
+            return message
+        }
+    }
+}
+
 enum AppleScriptFade {
     /// Total time for a full fade, in seconds.
     static let defaultFadeDuration = 3.0
@@ -122,14 +133,14 @@ enum AppleScriptFade {
         return nil
     }
 
-    static func executeSyncReturningInt(_ source: String) -> Result<Int, String> {
+    static func executeSyncReturningInt(_ source: String) -> Result<Int, AppleScriptFadeError> {
         var error: NSDictionary?
         guard let script = NSAppleScript(source: source) else {
-            return .failure("Failed to create AppleScript.")
+            return .failure(.failed("Failed to create AppleScript."))
         }
         let result = script.executeAndReturnError(&error)
         if let error {
-            return .failure(formatAppleScriptError(error))
+            return .failure(.failed(formatAppleScriptError(error)))
         }
         return .success(Int(result.int32Value))
     }
