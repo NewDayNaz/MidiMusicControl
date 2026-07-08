@@ -1,6 +1,20 @@
 import Combine
 import Foundation
 
+enum MappingTransferError: LocalizedError {
+    case invalidFile
+    case duplicateMapping(action: MIDIAction, conflictingAction: MIDIAction)
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidFile:
+            return "The selected file does not contain valid MIDI mappings."
+        case let .duplicateMapping(action, conflictingAction):
+            return "\"\(action.label)\" duplicates the mapping already assigned to \"\(conflictingAction.label)\"."
+        }
+    }
+}
+
 final class SettingsStore: ObservableObject {
     static let fadeDurationRange = 0.5...15.0
     static let duckVolumeRange = 1...100
@@ -154,6 +168,44 @@ final class SettingsStore: ObservableObject {
         return true
     }
 
+    func resetMappingsToDefaults() {
+        mappings = Self.defaultMappings
+        mappingConflictWarning = nil
+        save()
+    }
+
+    func exportMappingsData() throws -> Data {
+        let encoded = Dictionary(
+            uniqueKeysWithValues: MIDIAction.allCases.map { ($0.rawValue, mapping(for: $0)) }
+        )
+        return try JSONEncoder().encode(encoded)
+    }
+
+    func importMappingsData(_ data: Data) throws {
+        guard let decoded = try? JSONDecoder().decode([String: MIDIMapping].self, from: data) else {
+            throw MappingTransferError.invalidFile
+        }
+
+        let imported = Dictionary(
+            uniqueKeysWithValues: decoded.compactMap { key, value in
+                MIDIAction(rawValue: key).map { ($0, value) }
+            }
+        )
+
+        guard !imported.isEmpty else {
+            throw MappingTransferError.invalidFile
+        }
+
+        var merged = Self.defaultMappings
+        for action in MIDIAction.allCases {
+            if let mapping = imported[action] {
+                merged[action] = mapping
+            }
+        }
+
+        try replaceMappings(merged)
+    }
+
     func conflictingAction(for candidate: MIDIMapping, excluding action: MIDIAction) -> MIDIAction? {
         for existingAction in MIDIAction.allCases where existingAction != action {
             if mapping(for: existingAction) == candidate {
@@ -161,6 +213,22 @@ final class SettingsStore: ObservableObject {
             }
         }
         return nil
+    }
+
+    private func replaceMappings(_ candidateMappings: [MIDIAction: MIDIMapping]) throws {
+        for action in MIDIAction.allCases {
+            let candidate = candidateMappings[action] ?? Self.defaultMappings[action] ?? .default
+            for otherAction in MIDIAction.allCases where otherAction != action {
+                let otherMapping = candidateMappings[otherAction] ?? Self.defaultMappings[otherAction] ?? .default
+                if candidate == otherMapping {
+                    throw MappingTransferError.duplicateMapping(action: action, conflictingAction: otherAction)
+                }
+            }
+        }
+
+        mappingConflictWarning = nil
+        mappings = candidateMappings
+        save()
     }
 
     private func save() {

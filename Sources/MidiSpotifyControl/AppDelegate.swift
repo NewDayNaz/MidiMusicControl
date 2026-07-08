@@ -126,16 +126,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let view = SettingsView(settingsStore: settingsStore, midiManager: midiManager)
-        let hostingView = NSHostingView(rootView: view)
+        let hostingController = NSHostingController(rootView: view)
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 520, height: 720),
-            styleMask: [.titled, .closable, .miniaturizable],
+            contentRect: NSRect(x: 0, y: 0, width: 920, height: 760),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
         )
         window.title = "MIDI Music Control"
-        window.contentView = hostingView
+        window.contentViewController = hostingController
+        window.toolbarStyle = .unifiedCompact
+        window.titlebarAppearsTransparent = true
+        window.setContentSize(NSSize(width: 920, height: 760))
+        window.minSize = NSSize(width: 860, height: 700)
+        window.setFrameAutosaveName("MidiMusicControlSettings")
         window.center()
         window.isReleasedWhenClosed = false
         window.makeKeyAndOrderFront(nil)

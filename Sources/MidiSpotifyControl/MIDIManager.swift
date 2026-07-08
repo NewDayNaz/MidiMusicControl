@@ -8,6 +8,7 @@ final class MIDIManager: ObservableObject {
     @Published private(set) var connectionStatus: String?
     @Published var learningAction: MIDIAction?
     @Published var lastLearnedMessage: String?
+    @Published private(set) var lastReceivedMessage: String?
 
     var onActionTriggered: ((MIDIAction) -> Void)?
 
@@ -189,6 +190,7 @@ final class MIDIManager: ObservableObject {
     }
 
     private func handleNoteOn(note: UInt8, velocity: UInt8) {
+        lastReceivedMessage = "Note \(note) (\(MIDIMapping(kind: .noteOn, note: note, velocity: velocity).noteLabel)), value \(velocity)"
         if let learningAction {
             let mapping = MIDIMapping(kind: .noteOn, note: note, velocity: velocity)
             if settingsStore.setMapping(mapping, for: learningAction) {
@@ -206,6 +208,7 @@ final class MIDIManager: ObservableObject {
     }
 
     private func handleControlChange(controller: UInt8, value: UInt8) {
+        lastReceivedMessage = "CC \(controller), value \(value)"
         if let learningAction {
             let mapping = MIDIMapping(kind: .controlChange, note: controller, velocity: value)
             if settingsStore.setMapping(mapping, for: learningAction) {
