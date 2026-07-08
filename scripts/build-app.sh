@@ -57,8 +57,6 @@ source "$(dirname "$0")/ensure-swift-build-root.sh"
 ensure_swift_build_root "$ROOT"
 
 echo "==> Building release binary..."
-swift build -c release
-
 BINARY="$(swift build -c release --show-bin-path)/${APP_NAME}"
 if [[ ! -f "$BINARY" ]]; then
     echo "error: binary not found at ${BINARY}" >&2
@@ -109,6 +107,8 @@ cat > "${APP_PATH}/Contents/Info.plist" <<EOF
     <string>${MIN_MACOS}</string>
     <key>LSUIElement</key>
     <true/>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>MIDI Music Control needs to control Spotify and Music to fade and duck playback volume.</string>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSHumanReadableCopyright</key>

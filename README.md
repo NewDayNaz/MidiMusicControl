@@ -107,8 +107,8 @@ midi-spotify-control/
 │   ├── AppDelegate.swift     # Menu bar & settings window
 │   ├── SettingsView.swift    # SwiftUI settings UI
 │   ├── MIDIManager.swift     # Core MIDI input & learn mode
+│   ├── PlayerVolumeController.swift
 │   ├── AppleScriptFade.swift # Fade & duck AppleScript
-│   ├── DuckingController.swift
 │   ├── LaunchAtLogin.swift
 │   └── AppSettings.swift     # UserDefaults persistence
 └── dist/                     # Built .app (after running build script)
