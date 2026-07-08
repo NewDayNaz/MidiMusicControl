@@ -127,7 +127,7 @@ struct SettingsView: View {
         HStack(spacing: 12) {
             Image(systemName: "waveform.badge.magnifyingglass")
                 .font(.title3)
-                .foregroundStyle(.accent)
+                .foregroundStyle(Color.accentColor)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Listening for \(action.label)")
