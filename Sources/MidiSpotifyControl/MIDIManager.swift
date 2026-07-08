@@ -193,7 +193,7 @@ final class MIDIManager: ObservableObject {
         return messages
     }
 
-    static func parseMIDIMessage(_ bytes: [UInt8]) -> [ParsedMIDIMessage] {
+    fileprivate static func parseMIDIMessage(_ bytes: [UInt8]) -> [ParsedMIDIMessage] {
         var messages: [ParsedMIDIMessage] = []
         var index = 0
         var runningStatus: UInt8?

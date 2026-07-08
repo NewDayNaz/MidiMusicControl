@@ -57,6 +57,7 @@ source "$(dirname "$0")/ensure-swift-build-root.sh"
 ensure_swift_build_root "$ROOT"
 
 echo "==> Building release binary..."
+swift build -c release
 BINARY="$(swift build -c release --show-bin-path)/${APP_NAME}"
 if [[ ! -f "$BINARY" ]]; then
     echo "error: binary not found at ${BINARY}" >&2
