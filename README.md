@@ -186,7 +186,7 @@ The release workflow will:
 | `APPLE_TEAM_ID` | 10-character Team ID |
 | `APP_STORE_CONNECT_API_KEY_ID` | API key ID (e.g. `ABCD123456`) |
 | `APP_STORE_CONNECT_API_ISSUER_ID` | Issuer UUID from App Store Connect |
-| `APP_STORE_CONNECT_API_KEY` | Base64-encoded `.p8` key file |
+| `APP_STORE_CONNECT_API_KEY` | Base64-encoded `.p8` key file used directly by `notarytool` |
 
 Release secrets are only required for tagged releases. CI builds work without any secrets configured.
 

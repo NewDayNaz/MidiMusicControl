@@ -7,7 +7,9 @@ APP_NAME="${APP_NAME:-MidiMusicControl}"
 APP_PATH="${APP_PATH:-${ROOT}/dist/${APP_NAME}.app}"
 ENTITLEMENTS="${ENTITLEMENTS:-${ROOT}/Resources/MidiMusicControl.entitlements}"
 MACOS_SIGNING_IDENTITY="${MACOS_SIGNING_IDENTITY:?MACOS_SIGNING_IDENTITY is required}"
-NOTARYTOOL_PROFILE="${NOTARYTOOL_PROFILE:-notarytool-profile}"
+APP_STORE_CONNECT_API_KEY_PATH="${APP_STORE_CONNECT_API_KEY_PATH:-}"
+APP_STORE_CONNECT_API_KEY_ID="${APP_STORE_CONNECT_API_KEY_ID:-}"
+APP_STORE_CONNECT_API_ISSUER_ID="${APP_STORE_CONNECT_API_ISSUER_ID:-}"
 
 usage() {
     cat <<EOF
@@ -21,7 +23,12 @@ Required environment:
 Optional environment:
   APP_PATH                 Path to .app (default: dist/MidiMusicControl.app)
   ENTITLEMENTS             Path to entitlements plist
-  NOTARYTOOL_PROFILE       Keychain profile created by notarytool store-credentials
+  APP_STORE_CONNECT_API_KEY_PATH
+                           Path to the App Store Connect API .p8 key
+  APP_STORE_CONNECT_API_KEY_ID
+                           App Store Connect API key ID
+  APP_STORE_CONNECT_API_ISSUER_ID
+                           App Store Connect API issuer ID
   SKIP_NOTARIZE            Set to "true" to sign only
 EOF
 }
@@ -56,9 +63,16 @@ if [[ "${SKIP_NOTARIZE:-false}" == "true" ]]; then
     exit 0
 fi
 
+if [[ -z "$APP_STORE_CONNECT_API_KEY_PATH" || -z "$APP_STORE_CONNECT_API_KEY_ID" || -z "$APP_STORE_CONNECT_API_ISSUER_ID" ]]; then
+    echo "error: App Store Connect API key path, key ID, and issuer ID are required for notarization" >&2
+    exit 1
+fi
+
 echo "==> Submitting to Apple notarization..."
 xcrun notarytool submit "$ARCHIVE_PATH" \
-    --keychain-profile "$NOTARYTOOL_PROFILE" \
+    --key "$APP_STORE_CONNECT_API_KEY_PATH" \
+    --key-id "$APP_STORE_CONNECT_API_KEY_ID" \
+    --issuer "$APP_STORE_CONNECT_API_ISSUER_ID" \
     --wait
 
 echo "==> Stapling notarization ticket..."
