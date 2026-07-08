@@ -14,31 +14,7 @@ enum AppleScriptFade {
     /// Total time for a full fade, in seconds.
     static let defaultFadeDuration = 3.0
 
-    static func run(app: PlayerApp, action: FadeAction, fadeDuration: Double = defaultFadeDuration) {
-        let script = fadeScript(app: app, action: action, fadeDuration: fadeDuration)
-        DispatchQueue.global(qos: .userInitiated).async {
-            _ = execute(script)
-        }
-    }
-
-    /// Fades down to `targetVolume` while playing. Returns the pre-duck volume, if any.
-    static func duck(app: PlayerApp, targetVolume: Int, fadeDuration: Double) -> Int? {
-        let script = duckScript(app: app, targetVolume: targetVolume, fadeDuration: fadeDuration)
-        return executeReturningInt(script)
-    }
-
-    static func unduck(app: PlayerApp, restoreVolume: Int, fadeDuration: Double) {
-        let script = unduckScript(app: app, restoreVolume: restoreVolume, fadeDuration: fadeDuration)
-        DispatchQueue.global(qos: .userInitiated).async {
-            _ = execute(script)
-        }
-    }
-
-    private static func volumeVar(for app: PlayerApp) -> String {
-        app == .spotify ? "volumespotify" : "snd"
-    }
-
-    private static func fadeScript(app: PlayerApp, action: FadeAction, fadeDuration: Double) -> String {
+    static func fadeScript(app: PlayerApp, action: FadeAction, fadeDuration: Double) -> String {
         let duration = String(fadeDuration)
         let appName = app.rawValue
         let volumeVar = volumeVar(for: app)
@@ -48,13 +24,14 @@ enum AppleScriptFade {
             return """
             tell application "\(appName)"
                 if player state is paused then
-                    set \(volumeVar) to the sound volume
-                    set \(volumeVar) to 0
+                    set targetVol to the sound volume
+                    if targetVol < 1 then set targetVol to 100
+                    set the sound volume to 0
                     play
-                    set stepCount to (100 - \(volumeVar) + 1)
+                    set stepCount to (targetVol + 1)
                     if stepCount < 1 then set stepCount to 1
                     set stepDelay to \(duration) / stepCount
-                    repeat with i from \(volumeVar) to 100 by 1
+                    repeat with i from 0 to targetVol by 1
                         set the sound volume to i
                         delay stepDelay
                     end repeat
@@ -80,7 +57,7 @@ enum AppleScriptFade {
         }
     }
 
-    private static func duckScript(app: PlayerApp, targetVolume: Int, fadeDuration: Double) -> String {
+    static func duckScript(app: PlayerApp, targetVolume: Int, fadeDuration: Double) -> String {
         let appName = app.rawValue
         let volumeVar = volumeVar(for: app)
         return """
@@ -98,12 +75,14 @@ enum AppleScriptFade {
                     end repeat
                 end if
                 return \(volumeVar)
+            else
+                return -1
             end if
         end tell
         """
     }
 
-    private static func unduckScript(app: PlayerApp, restoreVolume: Int, fadeDuration: Double) -> String {
+    static func unduckScript(app: PlayerApp, restoreVolume: Int, fadeDuration: Double) -> String {
         let appName = app.rawValue
         let volumeVar = volumeVar(for: app)
         return """
@@ -125,23 +104,46 @@ enum AppleScriptFade {
         """
     }
 
+    /// Returns an error message on failure, or nil on success.
     @discardableResult
-    private static func execute(_ source: String) -> NSAppleEventDescriptor? {
+    static func executeSync(_ source: String) -> String? {
         var error: NSDictionary?
         guard let script = NSAppleScript(source: source) else {
-            fputs("Failed to create AppleScript.\n", stderr)
-            return nil
+            let message = "Failed to create AppleScript."
+            fputs("\(message)\n", stderr)
+            return message
+        }
+        _ = script.executeAndReturnError(&error)
+        if let error {
+            let message = formatAppleScriptError(error)
+            fputs("AppleScript error: \(message)\n", stderr)
+            return message
+        }
+        return nil
+    }
+
+    static func executeSyncReturningInt(_ source: String) -> Result<Int, String> {
+        var error: NSDictionary?
+        guard let script = NSAppleScript(source: source) else {
+            return .failure("Failed to create AppleScript.")
         }
         let result = script.executeAndReturnError(&error)
         if let error {
-            fputs("AppleScript error: \(error)\n", stderr)
-            return nil
+            return .failure(formatAppleScriptError(error))
         }
-        return result
+        return .success(Int(result.int32Value))
     }
 
-    private static func executeReturningInt(_ source: String) -> Int? {
-        guard let result = execute(source) else { return nil }
-        return Int(result.int32Value)
+    private static func volumeVar(for app: PlayerApp) -> String {
+        app == .spotify ? "volumespotify" : "snd"
+    }
+
+    private static func formatAppleScriptError(_ error: NSDictionary) -> String {
+        let message = error[NSAppleScript.errorMessage] as? String ?? "Unknown AppleScript error."
+        let number = error[NSAppleScript.errorNumber] as? Int ?? 0
+        if number == -1743 {
+            return "\(message) Allow automation for Spotify and Music in System Settings → Privacy & Security → Automation."
+        }
+        return message
     }
 }

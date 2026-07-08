@@ -6,7 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindow: NSWindow?
 
     let settingsStore = SettingsStore()
-    private let duckingController = DuckingController()
+    private let volumeController = PlayerVolumeController()
     private(set) lazy var midiManager = MIDIManager(settingsStore: settingsStore)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -14,6 +14,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupStatusItem()
         wireMIDIActions()
         midiManager.start()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        midiManager.stop()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -67,38 +71,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func wireMIDIActions() {
+        volumeController.onAutomationError = { [weak self] message in
+            self?.settingsStore.automationError = message
+        }
+
         midiManager.onActionTriggered = { [weak self] action in
             guard let self else { return }
             let settings = self.settingsStore
 
             switch action.actionKind {
             case .fadeIn:
-                AppleScriptFade.run(
+                self.volumeController.fade(
                     app: action.playerApp,
                     action: .fadeIn,
                     fadeDuration: settings.fadeDuration
                 )
             case .fadeOut:
-                AppleScriptFade.run(
+                self.volumeController.fade(
                     app: action.playerApp,
                     action: .fadeOut,
                     fadeDuration: settings.fadeDuration
                 )
             case .duck:
-                DispatchQueue.global(qos: .userInitiated).async {
-                    self.duckingController.duck(
-                        app: action.playerApp,
-                        duckVolumePercent: settings.duckVolumePercent,
-                        fadeDuration: settings.fadeDuration
-                    )
-                }
+                self.volumeController.duck(
+                    app: action.playerApp,
+                    duckVolumePercent: settings.duckVolumePercent,
+                    fadeDuration: settings.fadeDuration
+                )
             case .unduck:
-                DispatchQueue.global(qos: .userInitiated).async {
-                    self.duckingController.unduck(
-                        app: action.playerApp,
-                        fadeDuration: settings.fadeDuration
-                    )
-                }
+                self.volumeController.unduck(
+                    app: action.playerApp,
+                    fadeDuration: settings.fadeDuration
+                )
             }
         }
     }
