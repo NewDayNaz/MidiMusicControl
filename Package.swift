@@ -17,5 +17,9 @@ let package = Package(
                 .linkedFramework("ServiceManagement"),
             ]
         ),
+        .testTarget(
+            name: "MidiMusicControlTests",
+            dependencies: ["MidiMusicControl"]
+        ),
     ]
 )
