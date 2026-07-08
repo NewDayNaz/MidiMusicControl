@@ -2,6 +2,9 @@ import Combine
 import Foundation
 
 final class SettingsStore: ObservableObject {
+    static let fadeDurationRange = 0.5...15.0
+    static let duckVolumeRange = 1...100
+
     private enum Keys {
         static let fadeDuration = "fadeDuration"
         static let fadeStepDelay = "fadeStepDelay"
@@ -22,11 +25,25 @@ final class SettingsStore: ObservableObject {
     ]
 
     @Published var fadeDuration: Double {
-        didSet { save() }
+        didSet {
+            let clamped = min(Self.fadeDurationRange.upperBound, max(Self.fadeDurationRange.lowerBound, fadeDuration))
+            if clamped != fadeDuration {
+                fadeDuration = clamped
+                return
+            }
+            save()
+        }
     }
 
     @Published var duckVolumePercent: Int {
-        didSet { save() }
+        didSet {
+            let clamped = min(Self.duckVolumeRange.upperBound, max(Self.duckVolumeRange.lowerBound, duckVolumePercent))
+            if clamped != duckVolumePercent {
+                duckVolumePercent = clamped
+                return
+            }
+            save()
+        }
     }
 
     @Published var selectedSourceUniqueID: Int32? {
@@ -41,6 +58,8 @@ final class SettingsStore: ObservableObject {
     }
 
     @Published private(set) var launchAtLoginError: String?
+    @Published var automationError: String?
+    @Published var mappingConflictWarning: String?
 
     @Published private(set) var mappings: [MIDIAction: MIDIMapping]
 
@@ -53,11 +72,11 @@ final class SettingsStore: ObservableObject {
         if let storedDuration = defaults.object(forKey: Keys.fadeDuration) as? Double {
             fadeDuration = storedDuration
         } else if let legacyStepDelay = defaults.object(forKey: Keys.fadeStepDelay) as? Double {
-            // Previous setting was per-step delay for a 0→100 fade (~101 steps).
             fadeDuration = legacyStepDelay * 101
         } else {
             fadeDuration = AppleScriptFade.defaultFadeDuration
         }
+        fadeDuration = min(Self.fadeDurationRange.upperBound, max(Self.fadeDurationRange.lowerBound, fadeDuration))
 
         let storedDuckVolume: Int
         if defaults.object(forKey: Keys.duckVolumePercent) != nil {
@@ -65,7 +84,7 @@ final class SettingsStore: ObservableObject {
         } else {
             storedDuckVolume = 30
         }
-        duckVolumePercent = min(100, max(1, storedDuckVolume))
+        duckVolumePercent = min(Self.duckVolumeRange.upperBound, max(Self.duckVolumeRange.lowerBound, storedDuckVolume))
 
         if defaults.object(forKey: Keys.selectedSourceUniqueID) != nil {
             selectedSourceUniqueID = Int32(defaults.integer(forKey: Keys.selectedSourceUniqueID))
@@ -119,14 +138,33 @@ final class SettingsStore: ObservableObject {
         mappings[action] ?? Self.defaultMappings[action] ?? .default
     }
 
-    func setMapping(_ mapping: MIDIMapping, for action: MIDIAction) {
+    @discardableResult
+    func setMapping(_ mapping: MIDIMapping, for action: MIDIAction) -> Bool {
+        if let conflict = conflictingAction(for: mapping, excluding: action) {
+            mappingConflictWarning = "That message is already assigned to \"\(conflict.label)\"."
+            return false
+        }
+
+        mappingConflictWarning = nil
         var updated = mappings
         updated[action] = mapping
         mappings = updated
         save()
+        return true
+    }
+
+    func conflictingAction(for mapping: MIDIMapping, excluding action: MIDIAction) -> MIDIAction? {
+        for existingAction in MIDIAction.allCases where existingAction != action {
+            if mapping(for: existingAction) == mapping {
+                return existingAction
+            }
+        }
+        return nil
     }
 
     private func save() {
+        defaults.removeObject(forKey: Keys.fadeStepDelay)
+
         let encoded = Dictionary(uniqueKeysWithValues: mappings.map { ($0.key.rawValue, $0.value) })
         if let data = try? JSONEncoder().encode(encoded) {
             defaults.set(data, forKey: Keys.mappings)

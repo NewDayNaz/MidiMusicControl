@@ -9,6 +9,8 @@ private enum ParsedMIDIMessage {
 
 final class MIDIManager: ObservableObject {
     @Published private(set) var sources: [MIDISource] = []
+    @Published private(set) var setupError: String?
+    @Published private(set) var connectionStatus: String?
     @Published var learningAction: MIDIAction?
     @Published var lastLearnedMessage: String?
 
@@ -19,12 +21,15 @@ final class MIDIManager: ObservableObject {
     private var inputPort = MIDIPortRef()
     private var connectedSourceID: Int32?
     private var cancellables = Set<AnyCancellable>()
+    private var isStarted = false
 
     init(settingsStore: SettingsStore) {
         self.settingsStore = settingsStore
     }
 
     func start() {
+        guard !isStarted else { return }
+        isStarted = true
         setupClient()
         refreshSources()
         reconnectSelectedSource()
@@ -38,6 +43,20 @@ final class MIDIManager: ObservableObject {
             .store(in: &cancellables)
     }
 
+    func stop() {
+        guard isStarted else { return }
+        disconnectAllSources()
+        if inputPort != 0 {
+            MIDIPortDispose(inputPort)
+            inputPort = 0
+        }
+        if client != 0 {
+            MIDIClientDispose(client)
+            client = 0
+        }
+        isStarted = false
+    }
+
     func refreshSources() {
         var found: [MIDISource] = []
         let count = MIDIGetNumberOfSources()
@@ -49,13 +68,11 @@ final class MIDIManager: ObservableObject {
         }
         sources = found
 
-        if let selected = settingsStore.selectedSourceUniqueID,
-           !found.contains(where: { $0.uniqueID == selected }),
-           let first = found.first {
-            settingsStore.selectedSourceUniqueID = first.uniqueID
-        } else if settingsStore.selectedSourceUniqueID == nil, let first = found.first {
+        if settingsStore.selectedSourceUniqueID == nil, let first = found.first {
             settingsStore.selectedSourceUniqueID = first.uniqueID
         }
+
+        updateConnectionStatus()
     }
 
     func beginLearning(for action: MIDIAction) {
@@ -75,6 +92,7 @@ final class MIDIManager: ObservableObject {
             }
         }
         guard status == noErr else {
+            setupError = "Could not initialize Core MIDI (error \(status))."
             fputs("MIDIClientCreateWithBlock failed: \(status)\n", stderr)
             return
         }
@@ -86,6 +104,7 @@ final class MIDIManager: ObservableObject {
             }
         }
         guard portStatus == noErr else {
+            setupError = "Could not open MIDI input port (error \(portStatus))."
             fputs("MIDIInputPortCreateWithBlock failed: \(portStatus)\n", stderr)
             return
         }
@@ -94,7 +113,11 @@ final class MIDIManager: ObservableObject {
     private func reconnectSelectedSource() {
         disconnectAllSources()
 
-        guard let selectedID = settingsStore.selectedSourceUniqueID else { return }
+        guard let selectedID = settingsStore.selectedSourceUniqueID else {
+            updateConnectionStatus()
+            return
+        }
+
         let count = MIDIGetNumberOfSources()
         for index in 0..<count {
             let endpoint = MIDIGetSource(index)
@@ -103,9 +126,11 @@ final class MIDIManager: ObservableObject {
             if status == noErr {
                 connectedSourceID = selectedID
             }
+            updateConnectionStatus()
             return
         }
         connectedSourceID = nil
+        updateConnectionStatus()
     }
 
     private func disconnectAllSources() {
@@ -115,6 +140,30 @@ final class MIDIManager: ObservableObject {
             MIDIPortDisconnectSource(inputPort, endpoint)
         }
         connectedSourceID = nil
+    }
+
+    private func updateConnectionStatus() {
+        guard setupError == nil else {
+            connectionStatus = nil
+            return
+        }
+
+        guard let selectedID = settingsStore.selectedSourceUniqueID else {
+            connectionStatus = sources.isEmpty ? "No MIDI devices found." : "No MIDI input selected."
+            return
+        }
+
+        if connectedSourceID == selectedID,
+           let source = sources.first(where: { $0.uniqueID == selectedID }) {
+            connectionStatus = "Connected to \(source.name)."
+            return
+        }
+
+        if let source = sources.first(where: { $0.uniqueID == selectedID }) {
+            connectionStatus = "\(source.name) is unavailable. Refresh devices or choose another input."
+        } else {
+            connectionStatus = "Selected MIDI device is unavailable. Refresh devices or choose another input."
+        }
     }
 
     private func handleMessages(_ messages: [ParsedMIDIMessage]) {
@@ -144,32 +193,63 @@ final class MIDIManager: ObservableObject {
         return messages
     }
 
-    private static func parseMIDIMessage(_ bytes: [UInt8]) -> [ParsedMIDIMessage] {
+    static func parseMIDIMessage(_ bytes: [UInt8]) -> [ParsedMIDIMessage] {
         var messages: [ParsedMIDIMessage] = []
         var index = 0
-        while index < bytes.count {
-            let status = bytes[index]
-            let messageType = status & 0xF0
+        var runningStatus: UInt8?
 
+        while index < bytes.count {
+            let byte = bytes[index]
+
+            if byte >= 0xF0 {
+                runningStatus = nil
+                switch byte {
+                case 0xF0:
+                    index += 1
+                    while index < bytes.count && bytes[index] != 0xF7 { index += 1 }
+                    if index < bytes.count { index += 1 }
+                case 0xF1, 0xF3:
+                    index = min(index + 2, bytes.count)
+                case 0xF2:
+                    index = min(index + 3, bytes.count)
+                default:
+                    index += 1
+                }
+                continue
+            }
+
+            if byte >= 0x80 {
+                runningStatus = byte
+                index += 1
+                let messageType = byte & 0xF0
+                if messageType == 0xC0 || messageType == 0xD0 {
+                    index = min(index + 1, bytes.count)
+                }
+                continue
+            }
+
+            guard let status = runningStatus else {
+                index += 1
+                continue
+            }
+
+            let messageType = status & 0xF0
             switch messageType {
             case 0x90:
-                guard index + 2 < bytes.count else { return messages }
-                let note = bytes[index + 1]
-                let velocity = bytes[index + 2]
-                if velocity > 0 {
-                    messages.append(.noteOn(note: note, velocity: velocity))
-                }
-                index += 3
+                guard index + 1 < bytes.count else { return messages }
+                messages.append(.noteOn(note: byte, velocity: bytes[index + 1]))
+                index += 2
             case 0x80:
-                index += 3
+                index = min(index + 2, bytes.count)
             case 0xB0:
-                guard index + 2 < bytes.count else { return messages }
-                let controller = bytes[index + 1]
-                let value = bytes[index + 2]
-                messages.append(.controlChange(controller: controller, value: value))
-                index += 3
+                guard index + 1 < bytes.count else { return messages }
+                messages.append(.controlChange(controller: byte, value: bytes[index + 1]))
+                index += 2
+            case 0xE0:
+                index = min(index + 2, bytes.count)
             default:
                 index += 1
+                runningStatus = nil
             }
         }
         return messages
@@ -178,35 +258,43 @@ final class MIDIManager: ObservableObject {
     private func handleNoteOn(note: UInt8, velocity: UInt8) {
         if let learningAction {
             let mapping = MIDIMapping(kind: .noteOn, note: note, velocity: velocity)
-            settingsStore.setMapping(mapping, for: learningAction)
-            lastLearnedMessage = "Learned \(mapping.noteLabel), value \(velocity)"
-            self.learningAction = nil
+            if settingsStore.setMapping(mapping, for: learningAction) {
+                lastLearnedMessage = "Learned \(mapping.noteLabel), value \(velocity)"
+                self.learningAction = nil
+            } else {
+                lastLearnedMessage = settingsStore.mappingConflictWarning
+            }
             return
         }
 
-        for action in MIDIAction.allCases {
-            let mapping = settingsStore.mapping(for: action)
-            guard mapping.kind == .noteOn else { continue }
-            if mapping.note == note && mapping.velocity == velocity {
-                onActionTriggered?(action)
-            }
+        triggerFirstMatchingAction { mapping in
+            mapping.kind == .noteOn && mapping.note == note && mapping.velocity == velocity
         }
     }
 
     private func handleControlChange(controller: UInt8, value: UInt8) {
         if let learningAction {
             let mapping = MIDIMapping(kind: .controlChange, note: controller, velocity: value)
-            settingsStore.setMapping(mapping, for: learningAction)
-            lastLearnedMessage = "Learned CC \(controller), value \(value)"
-            self.learningAction = nil
+            if settingsStore.setMapping(mapping, for: learningAction) {
+                lastLearnedMessage = "Learned CC \(controller), value \(value)"
+                self.learningAction = nil
+            } else {
+                lastLearnedMessage = settingsStore.mappingConflictWarning
+            }
             return
         }
 
+        triggerFirstMatchingAction { mapping in
+            mapping.kind == .controlChange && mapping.note == controller && mapping.velocity == value
+        }
+    }
+
+    private func triggerFirstMatchingAction(where matches: (MIDIMapping) -> Bool) {
         for action in MIDIAction.allCases {
             let mapping = settingsStore.mapping(for: action)
-            guard mapping.kind == .controlChange else { continue }
-            if mapping.note == controller && mapping.velocity == value {
+            if matches(mapping) {
                 onActionTriggered?(action)
+                return
             }
         }
     }

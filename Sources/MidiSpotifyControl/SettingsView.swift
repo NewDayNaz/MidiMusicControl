@@ -37,6 +37,16 @@ struct SettingsView: View {
                 Button("Refresh Devices") {
                     midiManager.refreshSources()
                 }
+
+                if let setupError = midiManager.setupError {
+                    Text(setupError)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                } else if let connectionStatus = midiManager.connectionStatus {
+                    Text(connectionStatus)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             } header: {
                 Text("MIDI Input")
             }
@@ -77,6 +87,16 @@ struct SettingsView: View {
                 Text("Ducking")
             }
 
+            if let automationError = settingsStore.automationError {
+                Section {
+                    Text(automationError)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                } header: {
+                    Text("Automation")
+                }
+            }
+
             Section {
                 ForEach(MIDIAction.fadeActions) { action in
                     MappingRow(
@@ -101,16 +121,21 @@ struct SettingsView: View {
                         onCancelLearn: { midiManager.cancelLearning() }
                     )
                 }
-
-                if let message = midiManager.lastLearnedMessage {
-                    Text(message)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
             } header: {
                 Text("Duck Mappings")
             } footer: {
-                Text("Each action matches an exact note/CC and value. Use Learn to capture the next MIDI message from the selected input.")
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Each action matches an exact note/CC and value. Use Learn to capture the next MIDI message from the selected input.")
+                    if let message = midiManager.lastLearnedMessage {
+                        Text(message)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let warning = settingsStore.mappingConflictWarning {
+                        Text(warning)
+                            .foregroundStyle(.red)
+                    }
+                }
+                .font(.caption)
             }
         }
         .formStyle(.grouped)
@@ -138,7 +163,9 @@ struct SettingsView: View {
     private func mappingBinding(for action: MIDIAction) -> Binding<MIDIMapping> {
         Binding(
             get: { settingsStore.mapping(for: action) },
-            set: { settingsStore.setMapping($0, for: action) }
+            set: { newValue in
+                _ = settingsStore.setMapping(newValue, for: action)
+            }
         )
     }
 }
@@ -186,7 +213,7 @@ private struct MappingRow: View {
                 .labelsHidden()
                 .frame(width: MappingRowLayout.typeColumnWidth, alignment: .leading)
 
-                MIDIValueStepper(value: velocityBinding, range: 1...127)
+                MIDIValueStepper(value: velocityBinding, range: 0...127)
                     .frame(width: MappingRowLayout.valueColumnWidth, alignment: .leading)
 
                 Spacer(minLength: 0)
