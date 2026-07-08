@@ -38,10 +38,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private static func loadMenuBarIcon() -> NSImage? {
-        for bundle in [Bundle.main, Bundle.module] {
-            for name in ["MenuBarIcon@2x", "MenuBarIcon"] {
-                guard let url = bundle.url(forResource: name, withExtension: "png"),
-                      let data = try? Data(contentsOf: url),
+        for name in ["MenuBarIcon@2x", "MenuBarIcon"] {
+            for url in menuBarIconCandidateURLs(named: name) {
+                guard let data = try? Data(contentsOf: url),
                       let rep = NSBitmapImageRep(data: data) else { continue }
 
                 let image = NSImage(size: NSSize(width: 18, height: 18))
@@ -51,7 +50,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 return image
             }
         }
+
         return nil
+    }
+
+    private static func menuBarIconCandidateURLs(named name: String) -> [URL] {
+        let executableURL = URL(fileURLWithPath: CommandLine.arguments[0]).standardizedFileURL
+        let executableDirectory = executableURL.deletingLastPathComponent()
+
+        return [
+            Bundle.main.resourceURL?.appendingPathComponent(name).appendingPathExtension("png"),
+            executableDirectory.appendingPathComponent("Resources").appendingPathComponent(name).appendingPathExtension("png"),
+            executableDirectory.appendingPathComponent("MidiMusicControl_MidiMusicControl.bundle").appendingPathComponent(name).appendingPathExtension("png"),
+        ].compactMap { $0 }
     }
 
     private func buildMenu() -> NSMenu {
