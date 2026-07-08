@@ -61,9 +61,15 @@ ensure_swift_build_root "$ROOT"
 
 echo "==> Building release binary..."
 swift build -c release
-BINARY="$(swift build -c release --show-bin-path)/${APP_NAME}"
+BINARY_DIR="$(swift build -c release --show-bin-path)"
+BINARY="${BINARY_DIR}/${APP_NAME}"
+RESOURCE_BUNDLE="${BINARY_DIR}/${APP_NAME}_${APP_NAME}.bundle"
 if [[ ! -f "$BINARY" ]]; then
     echo "error: binary not found at ${BINARY}" >&2
+    exit 1
+fi
+if [[ ! -d "$RESOURCE_BUNDLE" ]]; then
+    echo "error: resource bundle not found at ${RESOURCE_BUNDLE}" >&2
     exit 1
 fi
 
@@ -78,6 +84,7 @@ bash "$(dirname "$0")/generate-menu-bar-icon.sh"
 cp "${ROOT}/Resources/AppIcon.icns" "${APP_PATH}/Contents/Resources/AppIcon.icns"
 cp "${ROOT}/Resources/MenuBarIcon.png" "${APP_PATH}/Contents/Resources/MenuBarIcon.png"
 cp "${ROOT}/Resources/MenuBarIcon@2x.png" "${APP_PATH}/Contents/Resources/MenuBarIcon@2x.png"
+cp -R "$RESOURCE_BUNDLE" "${APP_PATH}/Contents/Resources/${APP_NAME}_${APP_NAME}.bundle"
 
 cp "$BINARY" "${APP_PATH}/Contents/MacOS/${APP_NAME}"
 chmod +x "${APP_PATH}/Contents/MacOS/${APP_NAME}"

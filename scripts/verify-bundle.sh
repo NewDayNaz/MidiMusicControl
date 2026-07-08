@@ -33,8 +33,11 @@ MIN_VERSION="$(read_plist LSMinimumSystemVersion)"
 echo "Minimum macOS version: ${MIN_VERSION}"
 
 echo "==> Checking bundled resources..."
-for resource in AppIcon.icns MenuBarIcon.png MenuBarIcon@2x.png; do
+for resource in AppIcon.icns MenuBarIcon.png MenuBarIcon@2x.png MidiMusicControl_MidiMusicControl.bundle; do
     if [[ ! -f "${APP_PATH}/Contents/Resources/${resource}" ]]; then
+        if [[ -d "${APP_PATH}/Contents/Resources/${resource}" ]]; then
+            continue
+        fi
         echo "error: missing resource ${resource}" >&2
         exit 1
     fi
