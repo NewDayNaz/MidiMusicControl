@@ -160,7 +160,12 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-The workflow will build the app, sign it with your Developer ID, notarize it with Apple, and attach a `.zip` to a GitHub Release.
+The release workflow will:
+
+1. Run the full `ci-verify` checks for the tagged commit
+2. Build, sign, and notarize the app (only if verification passes)
+3. Publish a GitHub Release with a changelog listing each commit hash and subject since the previous tag
+4. Attach `MidiMusicControl-<version>-macos.zip` to the release
 
 ### One-time Apple setup
 
