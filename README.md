@@ -1,6 +1,6 @@
 # MIDI Music Control
 
-A macOS menu bar app that listens for MIDI messages and controls **Spotify** or **Apple Music** — fade tracks in and out, duck volume, and restore it again. Built for live use with hardware controllers.
+A macOS menu bar app that listens for MIDI messages and controls **Spotify** or **Apple Music** — fade tracks in and out, duck volume, and restore it again. Built for live use with hardware controllers or MIDI macros.
 
 ## Features
 
