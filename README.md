@@ -26,12 +26,15 @@ A macOS menu bar app that listens for MIDI messages and controls Spotify or Appl
 ### Option 1: Download from releases (recommended)
 
 1. Go to the [Releases page](https://github.com/newdaynaz/MidiMusicControl/releases)
-2. Download the latest `MidiMusicControl.app.zip`
+2. Download the appropriate build for your Mac:
+   - **Apple Silicon (M1/M2/M3)**: `MidiMusicControl-*-macos-arm64.zip`
+   - **Intel**: `MidiMusicControl-*-macos-x86_64.zip`
+   - **Universal** (runs on both): `MidiMusicControl-*-macos-universal.zip`
 3. Unzip the file
 4. Drag `MidiMusicControl.app` to your `/Applications` folder
 5. Launch the app from Applications or Spotlight
 
-This is the easiest way to install and includes full support for "Launch at login" and automatic updates.
+This is the easiest way to install and includes full support for "Launch at login".
 
 ### Option 2: Build a `.app` bundle
 
