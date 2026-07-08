@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 APP_NAME="MidiMusicControl"
 DISPLAY_NAME="MIDI Music Control"
-BUNDLE_ID="com.midimusiccontrol.app"
+BUNDLE_ID="com.newdaynaz.midimusiccontrol"
 VERSION="${VERSION:-1.0.0}"
 BUILD_NUMBER="${BUILD_NUMBER:-1}"
 MIN_MACOS="13.0"

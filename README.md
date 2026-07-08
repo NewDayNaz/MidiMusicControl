@@ -170,7 +170,7 @@ The release workflow will:
 ### One-time Apple setup
 
 1. Sign in at [Apple Developer](https://developer.apple.com/account).
-2. Register the bundle ID `com.midimusiccontrol.app` (Certificates, Identifiers & Profiles → Identifiers).
+2. Register the bundle ID `com.newdaynaz.midimusiccontrol` (Certificates, Identifiers & Profiles → Identifiers).
 3. Create a **Developer ID Application** certificate.
 4. Export the certificate as a `.p12` from Keychain Access.
 5. Create an [App Store Connect API key](https://appstoreconnect.apple.com/access/integrations/api) with at least **Developer** access for notarization.

@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP_PATH="${APP_PATH:-${ROOT}/dist/MidiMusicControl.app}"
-EXPECTED_BUNDLE_ID="${EXPECTED_BUNDLE_ID:-com.midimusiccontrol.app}"
+EXPECTED_BUNDLE_ID="${EXPECTED_BUNDLE_ID:-com.newdaynaz.midimusiccontrol}"
 
 if [[ ! -d "$APP_PATH" ]]; then
     echo "error: app bundle not found at ${APP_PATH}" >&2

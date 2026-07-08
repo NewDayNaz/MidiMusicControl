@@ -4,8 +4,8 @@ final class PlayerVolumeController {
     var onAutomationError: ((String?) -> Void)?
 
     private var duckState: [PlayerApp: DuckState] = [:]
-    private let spotifyQueue = DispatchQueue(label: "com.midimusiccontrol.volume.spotify")
-    private let musicQueue = DispatchQueue(label: "com.midimusiccontrol.volume.music")
+    private let spotifyQueue = DispatchQueue(label: "com.newdaynaz.midimusiccontrol.volume.spotify")
+    private let musicQueue = DispatchQueue(label: "com.newdaynaz.midimusiccontrol.volume.music")
 
     private enum DuckState {
         case ducking
