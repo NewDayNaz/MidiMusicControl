@@ -59,6 +59,36 @@ jobs:
           SKIP_SIGN: "true"
         run: ./scripts/build-app.sh
 
+      - name: Detect macOS build architecture
+        id: build_arch
+        run: |
+          BINARY="dist/MidiMusicControl.app/Contents/MacOS/MidiMusicControl"
+          if [[ ! -f "$BINARY" ]]; then
+            echo "::error::Built app binary not found at $BINARY"
+            exit 1
+          fi
+
+          ARCHS="$(lipo -archs "$BINARY" 2>/dev/null | xargs)"
+          if [[ -z "$ARCHS" ]]; then
+            echo "::error::Unable to determine binary architecture for $BINARY"
+            exit 1
+          fi
+
+          case "$ARCHS" in
+            "arm64")
+              ARCH_LABEL="arm64"
+              ;;
+            "x86_64")
+              ARCH_LABEL="x86_64"
+              ;;
+            *)
+              ARCH_LABEL="universal"
+              ;;
+          esac
+
+          echo "architectures=${ARCHS}" >> "$GITHUB_OUTPUT"
+          echo "label=${ARCH_LABEL}" >> "$GITHUB_OUTPUT"
+
       - name: Install Apple signing certificate
         env:
           MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
@@ -116,7 +146,7 @@ jobs:
       - name: Prepare release archive
         id: archive
         run: |
-          ARCHIVE="MidiMusicControl-${{ steps.version.outputs.version }}-macos.zip"
+          ARCHIVE="MidiMusicControl-${{ steps.version.outputs.version }}-macos-${{ steps.build_arch.outputs.label }}.zip"
           cp "${{ steps.sign.outputs.archive_path }}" "dist/${ARCHIVE}"
           echo "path=dist/${ARCHIVE}" >> "$GITHUB_OUTPUT"
 

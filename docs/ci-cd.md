@@ -34,7 +34,10 @@ The release workflow will:
 1. Run the full `ci-verify` checks for the tagged commit
 2. Build, sign, and notarize the app (only if verification passes)
 3. Publish a GitHub Release with a changelog listing each commit hash and subject since the previous tag
-4. Attach `MidiMusicControl-<version>-macos.zip` to the release
+4. Detect the built binary architecture and attach one of:
+   - `MidiMusicControl-<version>-macos-arm64.zip`
+   - `MidiMusicControl-<version>-macos-x86_64.zip`
+   - `MidiMusicControl-<version>-macos-universal.zip`
 
 ## One-Time Apple Setup
 
