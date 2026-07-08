@@ -69,14 +69,15 @@ final class SettingsStore: ObservableObject {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
 
+        let initialFadeDuration: Double
         if let storedDuration = defaults.object(forKey: Keys.fadeDuration) as? Double {
-            fadeDuration = storedDuration
+            initialFadeDuration = storedDuration
         } else if let legacyStepDelay = defaults.object(forKey: Keys.fadeStepDelay) as? Double {
-            fadeDuration = legacyStepDelay * 101
+            initialFadeDuration = legacyStepDelay * 101
         } else {
-            fadeDuration = AppleScriptFade.defaultFadeDuration
+            initialFadeDuration = AppleScriptFade.defaultFadeDuration
         }
-        fadeDuration = min(Self.fadeDurationRange.upperBound, max(Self.fadeDurationRange.lowerBound, fadeDuration))
+        fadeDuration = min(Self.fadeDurationRange.upperBound, max(Self.fadeDurationRange.lowerBound, initialFadeDuration))
 
         let storedDuckVolume: Int
         if defaults.object(forKey: Keys.duckVolumePercent) != nil {
@@ -153,9 +154,9 @@ final class SettingsStore: ObservableObject {
         return true
     }
 
-    func conflictingAction(for mapping: MIDIMapping, excluding action: MIDIAction) -> MIDIAction? {
+    func conflictingAction(for candidate: MIDIMapping, excluding action: MIDIAction) -> MIDIAction? {
         for existingAction in MIDIAction.allCases where existingAction != action {
-            if mapping(for: existingAction) == mapping {
+            if mapping(for: existingAction) == candidate {
                 return existingAction
             }
         }
